@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import type { ArcItem, Disposition, UserItemNote } from '../types/item';
+import type { MaterialUsageInfo } from '../utils/materials';
 import { RARITY_INFO, getTypeLabel } from '../constants/mappings';
 
 export type SortKey = 'name' | 'type' | 'rarity' | 'value' | 'disposition';
@@ -23,7 +24,7 @@ interface ItemTableProps {
   items: ArcItem[];
   notes: Record<string, UserItemNote>;
   needsSet: Set<string>;
-  materialUsedByMap: Map<string, string[]>;
+  materialUsedByMap: Map<string, MaterialUsageInfo>;
   itemMap: Map<string, ArcItem>;
   onSetDisposition: (itemId: string, disposition: Disposition) => void;
   onSetMemo: (itemId: string, memo: string) => void;
@@ -187,13 +188,27 @@ export function ItemTable({
               const disp: Disposition = note?.disposition ?? 'unset';
               const memo = note?.memo ?? '';
               const isNeed = needsSet.has(item.id);
-              const usedByIds = materialUsedByMap.get(item.id) ?? [];
+              const usage = materialUsedByMap.get(item.id);
+              const directCount = usage?.direct.length ?? 0;
+              const subCount = usage?.sub.length ?? 0;
+              const totalUsageCount = new Set([...(usage?.direct ?? []), ...(usage?.sub ?? [])]).size;
               const rarityInfo = RARITY_INFO[item.rarity] ?? {
                 label: item.rarity,
                 colorClass: 'rarity-common',
                 order: 0,
               };
-              const isWarning = usedByIds.length > 0 && (disp === 'sell' || disp === 'recycle');
+              const isWarning = totalUsageCount > 0 && (disp === 'sell' || disp === 'recycle');
+              const usageTooltipParts: string[] = [];
+              if (directCount > 0 && usage) {
+                usageTooltipParts.push(
+                  `直接必要: ${usage.direct.map((id) => itemMap.get(id)?.nameJa ?? id).join('、')}`
+                );
+              }
+              if (subCount > 0 && usage) {
+                usageTooltipParts.push(
+                  `精製用素材: ${usage.sub.map((id) => itemMap.get(id)?.nameJa ?? id).join('、')}`
+                );
+              }
 
               return (
                 <tr key={item.id} className={`row-${disp}`}>
@@ -223,15 +238,15 @@ export function ItemTable({
                       <div className="item-name-texts">
                         <div className="item-name-row">
                           <span className="item-name-ja">{item.nameJa}</span>
-                          {usedByIds.length > 0 && (
+                          {totalUsageCount > 0 && (
                             <span
-                              className={`badge-material ${isWarning ? 'warning' : ''}`}
-                              title={`必要素材: ${usedByIds
-                                .map((id) => itemMap.get(id)?.nameJa ?? id)
-                                .join('、')}`}
+                              className={`badge-material ${directCount === 0 ? 'sub' : ''} ${
+                                isWarning ? 'warning' : ''
+                              }`}
+                              title={usageTooltipParts.join('\n')}
                             >
                               {isWarning && <AlertTriangle size={12} />}
-                              必要素材 ({usedByIds.length})
+                              {directCount > 0 ? `必要素材 (${totalUsageCount})` : `精製用素材 (${totalUsageCount})`}
                             </span>
                           )}
                         </div>

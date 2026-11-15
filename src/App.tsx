@@ -17,6 +17,7 @@ import { ItemTable } from './components/ItemTable';
 import { NeedsView } from './components/NeedsView';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { SettingsModal } from './components/SettingsModal';
+import { collectNeedMaterials } from './utils/materials';
 
 type ActiveTab = 'items' | 'needs';
 
@@ -48,24 +49,11 @@ export function App() {
 
   const needsSet = useMemo(() => new Set(needsIds), [needsIds]);
 
-  // ニーズアイテムが必要とする素材の逆引きマップ (素材ID -> 必要としているニーズアイテムID配列)
-  const materialUsedByMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const needId of needsIds) {
-      const needItem = itemMap.get(needId);
-      if (!needItem) continue;
-      const matIds = new Set<string>([
-        ...Object.keys(needItem.recipe ?? {}),
-        ...Object.keys(needItem.upgradeCost ?? {}),
-      ]);
-      for (const matId of matIds) {
-        const list = map.get(matId) ?? [];
-        list.push(needId);
-        map.set(matId, list);
-      }
-    }
-    return map;
-  }, [needsIds, itemMap]);
+  // ニーズアイテムが必要とする素材（直接＋精錬機等の下位素材）の集計・逆引きマップ
+  const { directTotals, refinedSubTotals, materialUsedByMap } = useMemo(
+    () => collectNeedMaterials(needsIds, itemMap),
+    [needsIds, itemMap]
+  );
 
   const activeGroup = useMemo(
     () => CATEGORY_GROUPS.find((g) => g.id === categoryGroupId) ?? CATEGORY_GROUPS[0],
@@ -319,6 +307,8 @@ export function App() {
             needsIds={needsIds}
             itemMap={itemMap}
             notes={notes}
+            directTotals={directTotals}
+            refinedSubTotals={refinedSubTotals}
             onToggleNeed={toggleNeed}
             onSelectItem={setDetailItem}
             onSetDisposition={setDisposition}
@@ -342,7 +332,7 @@ export function App() {
           note={getNote(detailItem.id)}
           isNeed={needsSet.has(detailItem.id)}
           itemMap={itemMap}
-          usedByNeedIds={materialUsedByMap.get(detailItem.id) ?? []}
+          usedByInfo={materialUsedByMap.get(detailItem.id) ?? { direct: [], sub: [] }}
           onClose={() => setDetailItem(null)}
           onSetDisposition={setDisposition}
           onSetMemo={setMemo}

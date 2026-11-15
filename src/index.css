@@ -1292,3 +1292,72 @@ textarea {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Refined material & sub-recipe styles */
+.badge-material.sub {
+  background: rgba(168, 85, 247, 0.16);
+  color: #d8b4fe;
+}
+
+.craftable-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  vertical-align: middle;
+}
+
+.summary-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-sub-title {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-sub-title.refined {
+  color: #d8b4fe;
+}
+
+.summary-refined-block {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.material-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.material-sub-recipe {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding-left: 38px;
+  padding-bottom: 4px;
+}
+
+.usedby-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.usedby-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}

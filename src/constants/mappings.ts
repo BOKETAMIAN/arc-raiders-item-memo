@@ -102,12 +102,12 @@ export const DISPOSITION_INFO: Record<
 export const BENCH_JA_MAP: Record<string, string> = {
   in_raid: 'レイド中クラフト',
   med_station: '医療ステーション',
-  gunsmith: 'ガンスミス',
-  gear_bench: 'ギアベンチ',
-  explosives_station: '爆発物ステーション',
-  refiner: '精製機',
-  utility_station: 'ユーティリティステーション',
+  weapon_bench: '武器ベンチ',
+  equipment_bench: '装備ベンチ',
+  explosives_bench: '爆発物ベンチ',
+  utility_bench: 'ユーティリティベンチ',
   workbench: '作業台',
+  refiner: '精錬機',
 };
 
 export function getTypeLabel(type: string): string {

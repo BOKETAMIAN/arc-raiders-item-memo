@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
-import { Hammer, ArrowUpCircle, Star, PackageCheck, Trash2 } from 'lucide-react';
+import { Hammer, ArrowUpCircle, Star, PackageCheck, Trash2, Flame } from 'lucide-react';
 import type { ArcItem, Disposition, UserItemNote } from '../types/item';
 import { DISPOSITION_INFO, RARITY_INFO, getBenchLabel, getTypeLabel } from '../constants/mappings';
+import { isCraftableMaterial } from '../utils/materials';
 
 interface NeedsViewProps {
   needsIds: string[];
   itemMap: Map<string, ArcItem>;
   notes: Record<string, UserItemNote>;
+  directTotals: Map<string, number>;
+  refinedSubTotals: Map<string, number>;
   onToggleNeed: (itemId: string) => void;
   onSelectItem: (item: ArcItem) => void;
   onSetDisposition: (itemId: string, disposition: Disposition) => void;
@@ -16,6 +19,8 @@ export function NeedsView({
   needsIds,
   itemMap,
   notes,
+  directTotals,
+  refinedSubTotals,
   onToggleNeed,
   onSelectItem,
   onSetDisposition,
@@ -26,28 +31,25 @@ export function NeedsView({
       .filter((item): item is ArcItem => Boolean(item));
   }, [needsIds, itemMap]);
 
-  const totalMaterials = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const item of needItems) {
-      if (item.recipe) {
-        for (const [matId, count] of Object.entries(item.recipe)) {
-          totals.set(matId, (totals.get(matId) ?? 0) + count);
-        }
-      }
-      if (item.upgradeCost) {
-        for (const [matId, count] of Object.entries(item.upgradeCost)) {
-          totals.set(matId, (totals.get(matId) ?? 0) + count);
-        }
-      }
-    }
-    return Array.from(totals.entries())
+  const directList = useMemo(() => {
+    return Array.from(directTotals.entries())
       .map(([matId, count]) => ({
         id: matId,
         count,
         item: itemMap.get(matId) ?? null,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [needItems, itemMap]);
+  }, [directTotals, itemMap]);
+
+  const refinedSubList = useMemo(() => {
+    return Array.from(refinedSubTotals.entries())
+      .map(([matId, count]) => ({
+        id: matId,
+        count,
+        item: itemMap.get(matId) ?? null,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [refinedSubTotals, itemMap]);
 
   if (needItems.length === 0) {
     return (
@@ -62,6 +64,85 @@ export function NeedsView({
     );
   }
 
+  const renderMaterialSummaryGrid = (
+    list: Array<{ id: string; count: number; item: ArcItem | null }>
+  ) => (
+    <div className="summary-material-grid">
+      {list.map(({ id, count, item }) => {
+        const disp: Disposition = notes[id]?.disposition ?? 'unset';
+        const dispInfo = DISPOSITION_INFO[disp];
+        const craftable = item ? isCraftableMaterial(item) : false;
+        return (
+          <div key={id} className="summary-material-chip">
+            <div
+              className="summary-material-main"
+              onClick={() => item && onSelectItem(item)}
+              role="button"
+              tabIndex={0}
+            >
+              {item?.imageFilename && (
+                <img src={item.imageFilename} alt={item.nameJa} className="mini-thumb" />
+              )}
+              <div className="summary-material-info">
+                <span className="summary-material-name">
+                  {item?.nameJa ?? id}
+                  {craftable && <span className="craftable-tag">精製可</span>}
+                </span>
+                <span className={`mini-disp ${dispInfo.colorClass}`}>{dispInfo.label}</span>
+              </div>
+              <span className="material-count">×{count}</span>
+            </div>
+            {disp !== 'keep' && (
+              <button
+                type="button"
+                className="quick-keep-btn"
+                onClick={() => onSetDisposition(id, 'keep')}
+                title="この素材を「残す」に設定"
+              >
+                残すにする
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderMaterialRow = (matId: string, count: number) => {
+    const mat = itemMap.get(matId);
+    const matDisp = notes[matId]?.disposition ?? 'unset';
+    const craftable = isCraftableMaterial(mat);
+    return (
+      <li
+        key={matId}
+        onClick={() => mat && onSelectItem(mat)}
+        className="material-row-wrap"
+      >
+        <div className="material-row">
+          <div className="material-row-left">
+            {mat?.imageFilename && (
+              <img src={mat.imageFilename} alt={mat.nameJa} className="mini-thumb" />
+            )}
+            <span>{mat?.nameJa ?? matId}</span>
+            {craftable && <span className="craftable-tag">精製可</span>}
+            <span className={`mini-disp ${DISPOSITION_INFO[matDisp].colorClass}`}>
+              {DISPOSITION_INFO[matDisp].shortLabel}
+            </span>
+          </div>
+          <span className="material-count">×{count}</span>
+        </div>
+        {craftable && mat?.recipe && (
+          <div className="material-sub-recipe">
+            精製元:{' '}
+            {Object.entries(mat.recipe)
+              .map(([subId, subCount]) => `${itemMap.get(subId)?.nameJa ?? subId}×${subCount * count}`)
+              .join(' ＋ ')}
+          </div>
+        )}
+      </li>
+    );
+  };
+
   return (
     <div className="needs-view">
       <section className="needs-summary-card">
@@ -75,45 +156,26 @@ export function NeedsView({
           </span>
         </div>
 
-        {totalMaterials.length === 0 ? (
+        {directList.length === 0 ? (
           <p className="muted-text">
             保存されたアイテムには作成・アップグレード素材の情報が登録されていません。
           </p>
         ) : (
-          <div className="summary-material-grid">
-            {totalMaterials.map(({ id, count, item }) => {
-              const disp: Disposition = notes[id]?.disposition ?? 'unset';
-              const dispInfo = DISPOSITION_INFO[disp];
-              return (
-                <div key={id} className="summary-material-chip">
-                  <div
-                    className="summary-material-main"
-                    onClick={() => item && onSelectItem(item)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    {item?.imageFilename && (
-                      <img src={item.imageFilename} alt={item.nameJa} className="mini-thumb" />
-                    )}
-                    <div className="summary-material-info">
-                      <span className="summary-material-name">{item?.nameJa ?? id}</span>
-                      <span className={`mini-disp ${dispInfo.colorClass}`}>{dispInfo.label}</span>
-                    </div>
-                    <span className="material-count">×{count}</span>
-                  </div>
-                  {disp !== 'keep' && (
-                    <button
-                      type="button"
-                      className="quick-keep-btn"
-                      onClick={() => onSetDisposition(id, 'keep')}
-                      title="この素材を「残す」に設定"
-                    >
-                      残すにする
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+          <div className="summary-sections">
+            <div>
+              <h3 className="summary-sub-title">直接必要な素材</h3>
+              {renderMaterialSummaryGrid(directList)}
+            </div>
+
+            {refinedSubList.length > 0 && (
+              <div className="summary-refined-block">
+                <h3 className="summary-sub-title refined">
+                  <Flame size={15} />
+                  <span>精錬機などで必要素材を作る場合の下位素材（再帰展開）</span>
+                </h3>
+                {renderMaterialSummaryGrid(refinedSubList)}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -184,34 +246,7 @@ export function NeedsView({
                       <p className="muted-text small">クラフトレシピなし</p>
                     ) : (
                       <ul className="material-list">
-                        {recipeEntries.map(([matId, count]) => {
-                          const mat = itemMap.get(matId);
-                          const matDisp = notes[matId]?.disposition ?? 'unset';
-                          return (
-                            <li
-                              key={matId}
-                              onClick={() => mat && onSelectItem(mat)}
-                              className="material-row"
-                            >
-                              <div className="material-row-left">
-                                {mat?.imageFilename && (
-                                  <img
-                                    src={mat.imageFilename}
-                                    alt={mat.nameJa}
-                                    className="mini-thumb"
-                                  />
-                                )}
-                                <span>{mat?.nameJa ?? matId}</span>
-                                <span
-                                  className={`mini-disp ${DISPOSITION_INFO[matDisp].colorClass}`}
-                                >
-                                  {DISPOSITION_INFO[matDisp].shortLabel}
-                                </span>
-                              </div>
-                              <span className="material-count">×{count}</span>
-                            </li>
-                          );
-                        })}
+                        {recipeEntries.map(([matId, count]) => renderMaterialRow(matId, count))}
                       </ul>
                     )}
                   </div>
@@ -223,34 +258,7 @@ export function NeedsView({
                         <span>アップグレード必要素材</span>
                       </div>
                       <ul className="material-list">
-                        {upgradeEntries.map(([matId, count]) => {
-                          const mat = itemMap.get(matId);
-                          const matDisp = notes[matId]?.disposition ?? 'unset';
-                          return (
-                            <li
-                              key={matId}
-                              onClick={() => mat && onSelectItem(mat)}
-                              className="material-row"
-                            >
-                              <div className="material-row-left">
-                                {mat?.imageFilename && (
-                                  <img
-                                    src={mat.imageFilename}
-                                    alt={mat.nameJa}
-                                    className="mini-thumb"
-                                  />
-                                )}
-                                <span>{mat?.nameJa ?? matId}</span>
-                                <span
-                                  className={`mini-disp ${DISPOSITION_INFO[matDisp].colorClass}`}
-                                >
-                                  {DISPOSITION_INFO[matDisp].shortLabel}
-                                </span>
-                              </div>
-                              <span className="material-count">×{count}</span>
-                            </li>
-                          );
-                        })}
+                        {upgradeEntries.map(([matId, count]) => renderMaterialRow(matId, count))}
                       </ul>
                     </div>
                   )}

@@ -11,6 +11,7 @@ import {
   Package,
 } from 'lucide-react';
 import type { ArcItem, Disposition, UserItemNote } from '../types/item';
+import type { MaterialUsageInfo } from '../utils/materials';
 import { RARITY_INFO, getBenchLabel, getTypeLabel } from '../constants/mappings';
 
 interface ItemDetailModalProps {
@@ -18,7 +19,7 @@ interface ItemDetailModalProps {
   note: UserItemNote;
   isNeed: boolean;
   itemMap: Map<string, ArcItem>;
-  usedByNeedIds: string[];
+  usedByInfo: MaterialUsageInfo;
   onClose: () => void;
   onSetDisposition: (itemId: string, disposition: Disposition) => void;
   onSetMemo: (itemId: string, memo: string) => void;
@@ -31,7 +32,7 @@ export function ItemDetailModal({
   note,
   isNeed,
   itemMap,
-  usedByNeedIds,
+  usedByInfo,
   onClose,
   onSetDisposition,
   onSetMemo,
@@ -190,34 +191,67 @@ export function ItemDetailModal({
             />
           </div>
 
-          {usedByNeedIds.length > 0 && (
+          {(usedByInfo.direct.length > 0 || usedByInfo.sub.length > 0) && (
             <div className="detail-section highlight-need">
               <h3>
-                <Package size={16} /> この素材を必要としている保存済みアイテム（{usedByNeedIds.length}件）
+                <Package size={16} /> この素材を必要としている保存済みアイテム
               </h3>
-              <div className="detail-chip-list">
-                {usedByNeedIds.map((needId) => {
-                  const needItem = itemMap.get(needId);
-                  if (!needItem) return null;
-                  return (
-                    <button
-                      key={needId}
-                      type="button"
-                      className="detail-chip"
-                      onClick={() => onSelectItem(needItem)}
-                    >
-                      {needItem.imageFilename && (
-                        <img
-                          src={needItem.imageFilename}
-                          alt={needItem.nameJa}
-                          className="mini-thumb"
-                        />
-                      )}
-                      <span>{needItem.nameJa}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {usedByInfo.direct.length > 0 && (
+                <div className="usedby-group">
+                  <span className="usedby-label">直接必要:</span>
+                  <div className="detail-chip-list">
+                    {usedByInfo.direct.map((needId) => {
+                      const needItem = itemMap.get(needId);
+                      if (!needItem) return null;
+                      return (
+                        <button
+                          key={needId}
+                          type="button"
+                          className="detail-chip"
+                          onClick={() => onSelectItem(needItem)}
+                        >
+                          {needItem.imageFilename && (
+                            <img
+                              src={needItem.imageFilename}
+                              alt={needItem.nameJa}
+                              className="mini-thumb"
+                            />
+                          )}
+                          <span>{needItem.nameJa}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {usedByInfo.sub.length > 0 && (
+                <div className="usedby-group">
+                  <span className="usedby-label">精製用素材として必要:</span>
+                  <div className="detail-chip-list">
+                    {usedByInfo.sub.map((needId) => {
+                      const needItem = itemMap.get(needId);
+                      if (!needItem) return null;
+                      return (
+                        <button
+                          key={needId}
+                          type="button"
+                          className="detail-chip"
+                          onClick={() => onSelectItem(needItem)}
+                        >
+                          {needItem.imageFilename && (
+                            <img
+                              src={needItem.imageFilename}
+                              alt={needItem.nameJa}
+                              className="mini-thumb"
+                            />
+                          )}
+                          <span>{needItem.nameJa}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
